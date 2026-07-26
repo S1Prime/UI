@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="STARK HUD — Holographic System Interface with real-time diagnostics, 3D models, and particle effects.">
+  <title>STARK — Holographic HUD</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Particle Canvas -->
+  <canvas id="particleCanvas"></canvas>
+
+  <!-- Grid Overlay -->
+  <div class="grid-overlay"></div>
+  <div class="vignette"></div>
+
+  <!-- Helmet Visor HUD Overlay -->
+  <div class="helmet-visor" id="helmetVisor">
+    <svg class="helmet-visor__svg" viewBox="0 0 1000 600" preserveAspectRatio="none">
+      <path class="visor-path visor-path--outer" d="M0,0 L1000,0 L1000,600 L0,600 Z M60,60 C300,20 700,20 940,60 C970,200 970,400 940,540 C700,580 300,580 60,540 C30,400 30,200 60,60 Z" />
+      <path class="visor-path visor-path--inner" d="M70,70 C310,32 690,32 930,70 C958,205 958,395 930,530 C690,568 310,568 70,530 C42,395 42,205 70,70 Z" />
+      <line x1="500" y1="20" x2="500" y2="40" class="visor-tick"/>
+      <line x1="500" y1="560" x2="500" y2="580" class="visor-tick"/>
+      <line x1="20" y1="300" x2="40" y2="300" class="visor-tick"/>
+      <line x1="960" y1="300" x2="980" y2="300" class="visor-tick"/>
+      <path d="M120,90 A 450 450 0 0 1 880,90" class="visor-arc"/>
+      <path d="M120,510 A 450 450 0 0 0 880,510" class="visor-arc"/>
+    </svg>
+    <div class="visor-glare"></div>
+    <div class="visor-scan-line"></div>
+    <div class="visor-readout visor-readout--tl">SYS.VISION // <span id="visorVisionModeLabel">NORMAL</span></div>
+    <div class="visor-readout visor-readout--tr">TARGET LOCK: <span id="visorTargetStatus">TRACKING</span></div>
+    <div class="visor-readout visor-readout--bl">HELMET MASK: <span id="visorArmorModel">MARK 85</span></div>
+    <div class="visor-readout visor-readout--br">TACTICAL FOV: 120°</div>
+  </div>
+
+  <!-- Tactical Reticle & Lock System -->
+  <div class="target-reticle" id="targetReticle">
+    <div class="reticle-ring reticle-ring--outer"></div>
+    <div class="reticle-ring reticle-ring--inner"></div>
+    <div class="reticle-crosshair reticle-crosshair--h"></div>
+    <div class="reticle-crosshair reticle-crosshair--v"></div>
+    <div class="reticle-lock-box">
+      <span class="reticle-corner reticle-corner--tl"></span>
+      <span class="reticle-corner reticle-corner--tr"></span>
+      <span class="reticle-corner reticle-corner--bl"></span>
+      <span class="reticle-corner reticle-corner--br"></span>
+    </div>
+    <div class="reticle-data">
+      <span class="reticle-title" id="reticleTitle">SCANNING...</span>
+      <span class="reticle-sub" id="reticleSub">DIST: 1.2m | THREAT: 0%</span>
+    </div>
+  </div>
+
+  <!-- HUD Corner Brackets -->
+  <div class="hud-corner hud-corner--tl"></div>
+  <div class="hud-corner hud-corner--tr"></div>
+  <div class="hud-corner hud-corner--bl"></div>
+  <div class="hud-corner hud-corner--br"></div>
+
+  <!-- Top HUD Bar -->
+  <header class="hud-bar" id="hudBar">
+    <div class="hud-bar__left">
+      <div class="arc-logo">
+        <svg viewBox="0 0 40 40" class="arc-logo__svg">
+          <circle cx="20" cy="20" r="17" class="arc-ring arc-ring--outer"/>
+          <circle cx="20" cy="20" r="12" class="arc-ring arc-ring--mid"/>
+          <circle cx="20" cy="20" r="6" class="arc-ring arc-ring--core"/>
+        </svg>
+      </div>
+      <div class="hud-bar__brand">
+        <span class="brand-name">S.T.A.R.K</span>
+        <span class="brand-sub">HOLOGRAPHIC USER DISPLAY</span>
+      </div>
+    </div>
+    <div class="hud-bar__center">
+      <div class="hud-status">
+        <span class="hud-status__dot"></span>
+        <span class="hud-status__text">ALL SYSTEMS NOMINAL</span>
+      </div>
+      <div class="hud-visor-controls">
+        <button class="visor-toggle-btn" id="visorToggleBtn" title="Toggle Helmet Visor Overlay">
+          <span class="visor-btn-icon">🪖</span> VISOR HUD
+        </button>
+        <div class="vision-mode-selector">
+          <button class="vmode-btn active" data-mode="normal" title="Normal Vision">STD</button>
+          <button class="vmode-btn" data-mode="thermal" title="Thermal Infrared Vision">IR</button>
+          <button class="vmode-btn" data-mode="targeting" title="War Protocol Vision">WAR</button>
+          <button class="vmode-btn" data-mode="nvg" title="Night Vision Protocol">NVG</button>
+        </div>
+      </div>
+    </div>
+    <div class="hud-bar__right">
+      <span class="hud-date" id="dateDisplay"></span>
+      <div class="hud-signal">
+        <span class="signal-bar" style="--h:40%"></span>
+        <span class="signal-bar" style="--h:60%"></span>
+        <span class="signal-bar" style="--h:80%"></span>
+        <span class="signal-bar" style="--h:100%"></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Dashboard -->
+  <main class="hud-grid">
+
+    <!-- ─── Left Column ─── -->
+    <div class="hud-col hud-col--left">
+
+      <!-- Circular Clock -->
+      <section class="panel panel--clock" id="clockPanel">
+        <div class="panel__label"><span class="label-dot"></span>SYSTEM CHRONOMETER</div>
+        <div class="circular-clock">
+          <svg viewBox="0 0 300 300" class="clock-svg" id="clockSvg">
+            <!-- Outer ticks -->
+            <g id="clockTicks"></g>
+            <!-- Hour ring -->
+            <circle cx="150" cy="150" r="130" class="clock-track"/>
+            <circle cx="150" cy="150" r="130" class="clock-arc clock-arc--hour" id="arcHour"/>
+            <!-- Minute ring -->
+            <circle cx="150" cy="150" r="115" class="clock-track"/>
+            <circle cx="150" cy="150" r="115" class="clock-arc clock-arc--min" id="arcMin"/>
+            <!-- Second ring -->
+            <circle cx="150" cy="150" r="100" class="clock-track"/>
+            <circle cx="150" cy="150" r="100" class="clock-arc clock-arc--sec" id="arcSec"/>
+            <!-- Center dot -->
+            <circle cx="150" cy="150" r="4" class="clock-center-dot"/>
+          </svg>
+          <div class="clock-digital">
+            <div class="clock-time-row">
+              <span class="cd-digit" id="cdH">00</span>
+              <span class="cd-sep">:</span>
+              <span class="cd-digit" id="cdM">00</span>
+              <span class="cd-sep cd-sep--blink">:</span>
+              <span class="cd-digit" id="cdS">00</span>
+            </div>
+            <span class="cd-ampm" id="cdAmpm">AM</span>
+            <span class="cd-tz" id="cdTz">UTC</span>
+          </div>
+        </div>
+        <div class="panel-meta-row">
+          <div class="meta-chip"><span class="meta-chip__label">UPTIME</span><span class="meta-chip__value" id="uptime">00:00:00</span></div>
+          <div class="meta-chip"><span class="meta-chip__label">DRIFT</span><span class="meta-chip__value">±0.02ms</span></div>
+        </div>
+      </section>
+
+      <!-- CPU / RAM Gauges -->
+      <section class="panel panel--diag" id="diagPanel">
+        <div class="panel__label"><span class="label-dot"></span>SYSTEM DIAGNOSTICS</div>
+        <div class="diag-gauges">
+          <div class="gauge" id="gaugeCpu">
+            <svg viewBox="0 0 120 120" class="gauge__svg">
+              <circle cx="60" cy="60" r="50" class="gauge__track"/>
+              <circle cx="60" cy="60" r="50" class="gauge__fill" id="cpuArc"/>
+            </svg>
+            <div class="gauge__inner">
+              <span class="gauge__value" id="cpuVal">0%</span>
+              <span class="gauge__label">CPU</span>
+            </div>
+          </div>
+          <div class="gauge" id="gaugeRam">
+            <svg viewBox="0 0 120 120" class="gauge__svg">
+              <circle cx="60" cy="60" r="50" class="gauge__track"/>
+              <circle cx="60" cy="60" r="50" class="gauge__fill gauge__fill--purple" id="ramArc"/>
+            </svg>
+            <div class="gauge__inner">
+              <span class="gauge__value" id="ramVal">0%</span>
+              <span class="gauge__label">RAM</span>
+            </div>
+          </div>
+          <div class="gauge" id="gaugeGpu">
+            <svg viewBox="0 0 120 120" class="gauge__svg">
+              <circle cx="60" cy="60" r="50" class="gauge__track"/>
+              <circle cx="60" cy="60" r="50" class="gauge__fill gauge__fill--green" id="gpuArc"/>
+            </svg>
+            <div class="gauge__inner">
+              <span class="gauge__value" id="gpuVal">0%</span>
+              <span class="gauge__label">GPU</span>
+            </div>
+          </div>
+        </div>
+        <div class="diag-bars">
+          <div class="diag-bar-row">
+            <span class="diag-bar__label">NETWORK</span>
+            <div class="diag-bar__track"><div class="diag-bar__fill" id="netBar" style="width:0%"></div></div>
+            <span class="diag-bar__val" id="netVal">0 Mb/s</span>
+          </div>
+          <div class="diag-bar-row">
+            <span class="diag-bar__label">DISK I/O</span>
+            <div class="diag-bar__track"><div class="diag-bar__fill diag-bar__fill--teal" id="diskBar" style="width:0%"></div></div>
+            <span class="diag-bar__val" id="diskVal">0 MB/s</span>
+          </div>
+          <div class="diag-bar-row">
+            <span class="diag-bar__label">TEMP</span>
+            <div class="diag-bar__track"><div class="diag-bar__fill diag-bar__fill--orange" id="tempBar" style="width:0%"></div></div>
+            <span class="diag-bar__val" id="tempVal">0°C</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- System Themes & Color Palettes -->
+      <section class="panel panel--themes" id="themesPanel">
+        <div class="panel__label"><span class="label-dot"></span>SYSTEM THEMES & COLOR PALETTES</div>
+        <div class="theme-preset-grid">
+          <button class="theme-card active" data-theme="stark" title="Stark Cyan Theme">
+            <span class="t-swatch" style="background:linear-gradient(135deg,#00c3ff,#7b61ff)"></span>
+            <span class="t-name">STARK</span>
+          </button>
+          <button class="theme-card" data-theme="ironman" title="Mark 85 Gold & Red Theme">
+            <span class="t-swatch" style="background:linear-gradient(135deg,#ff2a2a,#ffd700)"></span>
+            <span class="t-name">MARK 85</span>
+          </button>
+          <button class="theme-card" data-theme="friday" title="Friday Emerald Theme">
+            <span class="t-swatch" style="background:linear-gradient(135deg,#00ffa3,#00c3ff)"></span>
+            <span class="t-name">FRIDAY</span>
+          </button>
+          <button class="theme-card" data-theme="quantum" title="Quantum Violet Theme">
+            <span class="t-swatch" style="background:linear-gradient(135deg,#7b61ff,#ff00ff)"></span>
+            <span class="t-name">QUANTUM</span>
+          </button>
+          <button class="theme-card" data-theme="stealth" title="Stealth Obsidian Theme">
+            <span class="t-swatch" style="background:linear-gradient(135deg,#e0e0e0,#5a7394)"></span>
+            <span class="t-name">STEALTH</span>
+          </button>
+          <button class="theme-card" data-theme="cyberpunk" title="Cyberpunk Neon Theme">
+            <span class="t-swatch" style="background:linear-gradient(135deg,#ff007f,#ffe600)"></span>
+            <span class="t-name">CYBER</span>
+          </button>
+          <button class="theme-card" data-theme="amber" title="Arc Amber Theme">
+            <span class="t-swatch" style="background:linear-gradient(135deg,#ffaa00,#ff4500)"></span>
+            <span class="t-name">AMBER</span>
+          </button>
+          <button class="theme-card" data-theme="matrix" title="Matrix Code Theme">
+            <span class="t-swatch" style="background:linear-gradient(135deg,#00ff66,#009933)"></span>
+            <span class="t-name">MATRIX</span>
+          </button>
+        </div>
+
+        <div class="custom-color-section">
+          <span class="custom-color-title">CUSTOM ACCENT COLOR OVERRIDE</span>
+          <div class="custom-color-inputs">
+            <div class="c-input-group">
+              <label for="cpPrimary">PRIMARY</label>
+              <input type="color" id="cpPrimary" value="#00c3ff">
+            </div>
+            <div class="c-input-group">
+              <label for="cpSecondary">SECONDARY</label>
+              <input type="color" id="cpSecondary" value="#7b61ff">
+            </div>
+            <div class="c-input-group">
+              <label for="cpTeal">ACCENT</label>
+              <input type="color" id="cpTeal" value="#00ffa3">
+            </div>
+            <button class="c-reset-btn" id="resetThemeColorsBtn" title="Reset to Preset Colors">🔄 RESET</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ─── Center Column ─── -->
+    <div class="hud-col hud-col--center">
+
+      <!-- Arc Reactor Centerpiece -->
+      <section class="panel panel--reactor" id="reactorPanel">
+        <div class="panel__label"><span class="label-dot"></span>ARC REACTOR CORE</div>
+        <div class="reactor-viewport">
+          <div class="reactor">
+            <div class="reactor__ring reactor__ring--1"></div>
+            <div class="reactor__ring reactor__ring--2"></div>
+            <div class="reactor__ring reactor__ring--3"></div>
+            <div class="reactor__spokes">
+              <span style="--r:0deg"></span>
+              <span style="--r:30deg"></span>
+              <span style="--r:60deg"></span>
+              <span style="--r:90deg"></span>
+              <span style="--r:120deg"></span>
+              <span style="--r:150deg"></span>
+              <span style="--r:180deg"></span>
+              <span style="--r:210deg"></span>
+              <span style="--r:240deg"></span>
+              <span style="--r:270deg"></span>
+              <span style="--r:300deg"></span>
+              <span style="--r:330deg"></span>
+            </div>
+            <div class="reactor__core">
+              <div class="reactor__core-inner"></div>
+            </div>
+            <div class="reactor__orbiter reactor__orbiter--1"></div>
+            <div class="reactor__orbiter reactor__orbiter--2"></div>
+            <div class="reactor__orbiter reactor__orbiter--3"></div>
+          </div>
+          <div class="reactor-data">
+            <span class="reactor-data__val" id="reactorOutput">3.6 GW</span>
+            <span class="reactor-data__label">POWER OUTPUT</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Armor & Helmet Mask Diagnostics -->
+      <section class="panel panel--helmet" id="helmetPanel">
+        <div class="panel__label"><span class="label-dot"></span>ARMOR & HELMET MASK DIAGNOSTICS</div>
+        <div class="helmet-viewer">
+          <div class="suit-selector">
+            <button class="suit-tab active" data-suit="mk85">MK 85</button>
+            <button class="suit-tab" data-suit="mk50">MK 50</button>
+            <button class="suit-tab" data-suit="hulkbuster">BUSTER</button>
+            <button class="suit-tab" data-suit="warmachine">WAR MACH</button>
+          </div>
+          <div class="helmet-stage">
+            <svg viewBox="0 0 200 200" class="helmet-svg" id="helmetSvg">
+              <g class="h-wireframe">
+                <path d="M60,75 C60,35 140,35 140,75 C155,90 155,130 140,150 L130,175 C115,185 85,185 70,175 L60,150 C45,130 45,90 60,75 Z" class="h-path h-outer"/>
+                <path d="M60,75 Q100,60 140,75 Q100,90 60,75 Z" class="h-path h-brow"/>
+                <polygon points="70,95 95,98 92,105 72,102" class="h-eye h-eye--left"/>
+                <polygon points="130,95 105,98 108,105 128,102" class="h-eye h-eye--right"/>
+                <path d="M72,102 L65,130 L85,155 L100,165 L115,155 L135,130 L128,102" class="h-path h-jaw"/>
+                <line x1="88" y1="145" x2="112" y2="145" class="h-path h-mouth"/>
+                <line x1="100" y1="40" x2="100" y2="70" class="h-path h-crest"/>
+                <circle cx="100" cy="110" r="75" class="h-scan-ring"/>
+                <circle cx="100" cy="110" r="55" class="h-scan-ring h-scan-ring--inner"/>
+              </g>
+            </svg>
+            <div class="helmet-data">
+              <div class="h-stat-row">
+                <span class="h-stat-lbl">SUIT ARMOR</span>
+                <span class="h-stat-val" id="hArmorVal">GOLD-TITANIUM</span>
+              </div>
+              <div class="h-stat-row">
+                <span class="h-stat-lbl">MASK STATE</span>
+                <span class="h-stat-val" id="hMaskState">SEALED (LOCKED)</span>
+              </div>
+              <div class="h-stat-row">
+                <span class="h-stat-lbl">TGT SYSTEMS</span>
+                <span class="h-stat-val" id="hTgtSystems">AUTO-TRACKING</span>
+              </div>
+            </div>
+          </div>
+          <div class="helmet-controls">
+            <button class="h-ctrl-btn" id="sweepTargetBtn">🎯 SWEEP TGT</button>
+            <button class="h-ctrl-btn" id="toggleAudioSfxBtn">🔊 AUDIO: ON</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3D Cube Model -->
+      <section class="panel panel--model" id="cubePanel">
+        <div class="panel__label"><span class="label-dot"></span>3D HOLOGRAPHIC CUBE</div>
+        <div class="model-stage">
+          <div class="scene scene--cube" id="cubeScene">
+            <div class="cube">
+              <div class="cube__face cube__face--front"><div class="face-hud"><span>FRONT</span><div class="face-scanline"></div></div></div>
+              <div class="cube__face cube__face--back"><div class="face-hud"><span>BACK</span><div class="face-scanline"></div></div></div>
+              <div class="cube__face cube__face--right"><div class="face-hud"><span>RIGHT</span><div class="face-scanline"></div></div></div>
+              <div class="cube__face cube__face--left"><div class="face-hud"><span>LEFT</span><div class="face-scanline"></div></div></div>
+              <div class="cube__face cube__face--top"><div class="face-hud"><span>TOP</span><div class="face-scanline"></div></div></div>
+              <div class="cube__face cube__face--bottom"><div class="face-hud"><span>BTM</span><div class="face-scanline"></div></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="model-ctrl">
+          <button class="ctrl-btn" id="cubeSlower" aria-label="Slower">
+            <svg viewBox="0 0 20 20"><polygon points="13,4 7,10 13,16"/></svg>
+          </button>
+          <span class="ctrl-speed" id="cubeSpeed">1.0×</span>
+          <button class="ctrl-btn" id="cubeFaster" aria-label="Faster">
+            <svg viewBox="0 0 20 20"><polygon points="7,4 13,10 7,16"/></svg>
+          </button>
+          <button class="ctrl-btn ctrl-btn--accent" id="cubePause" aria-label="Pause">⏸</button>
+        </div>
+      </section>
+    </div>
+
+    <!-- ─── Right Column ─── -->
+    <div class="hud-col hud-col--right">
+
+      <!-- Battery -->
+      <section class="panel panel--battery" id="batteryPanel">
+        <div class="panel__label"><span class="label-dot"></span>POWER CELL</div>
+        <div class="battery-ring-wrap">
+          <svg viewBox="0 0 200 200" class="battery-ring-svg">
+            <defs>
+              <linearGradient id="battGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#00c3ff"/>
+                <stop offset="100%" stop-color="#00ffa3"/>
+              </linearGradient>
+            </defs>
+            <circle cx="100" cy="100" r="85" class="batt-track"/>
+            <circle cx="100" cy="100" r="85" class="batt-arc" id="battArc"/>
+            <!-- Tick marks -->
+            <g id="battTicks"></g>
+          </svg>
+          <div class="battery-ring-center">
+            <span class="batt-pct" id="battPct">--%</span>
+            <span class="batt-label">CHARGE</span>
+          </div>
+        </div>
+        <div class="batt-info-grid">
+          <div class="batt-info">
+            <span class="batt-info__icon">⚡</span>
+            <div>
+              <span class="batt-info__label">STATUS</span>
+              <span class="batt-info__value" id="battStatus">--</span>
+            </div>
+          </div>
+          <div class="batt-info">
+            <span class="batt-info__icon">🛡️</span>
+            <div>
+              <span class="batt-info__label">HEALTH</span>
+              <span class="batt-info__value" id="battHealth">--</span>
+            </div>
+          </div>
+          <div class="batt-info">
+            <span class="batt-info__icon">⏱️</span>
+            <div>
+              <span class="batt-info__label">ETA</span>
+              <span class="batt-info__value" id="battEta">--</span>
+            </div>
+          </div>
+          <div class="batt-info">
+            <span class="batt-info__icon">🌡️</span>
+            <div>
+              <span class="batt-info__label">CYCLES</span>
+              <span class="batt-info__value" id="battCycles">--</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3D Pyramid + Ring -->
+      <section class="panel panel--model" id="pyramidPanel">
+        <div class="panel__label"><span class="label-dot"></span>3D HOLOGRAPHIC PRISM</div>
+        <div class="model-stage">
+          <div class="scene scene--pyramid" id="pyramidScene">
+            <div class="pyramid">
+              <div class="pyramid__face pyramid__face--front"></div>
+              <div class="pyramid__face pyramid__face--right"></div>
+              <div class="pyramid__face pyramid__face--back"></div>
+              <div class="pyramid__face pyramid__face--left"></div>
+              <div class="pyramid__base"></div>
+            </div>
+          </div>
+        </div>
+        <div class="model-ctrl">
+          <button class="ctrl-btn" id="pyrSlower" aria-label="Slower">
+            <svg viewBox="0 0 20 20"><polygon points="13,4 7,10 13,16"/></svg>
+          </button>
+          <span class="ctrl-speed" id="pyrSpeed">1.0×</span>
+          <button class="ctrl-btn" id="pyrFaster" aria-label="Faster">
+            <svg viewBox="0 0 20 20"><polygon points="7,4 13,10 7,16"/></svg>
+          </button>
+          <button class="ctrl-btn ctrl-btn--accent" id="pyrPause" aria-label="Pause">⏸</button>
+        </div>
+      </section>
+    </div>
+
+  </main>
+
+  <!-- Bottom HUD Bar -->
+  <footer class="hud-footer" id="hudFooter">
+    <div class="hud-footer__left">
+      <span class="footer-chip">STARK OS v4.7.2</span>
+      <span class="footer-chip"><span class="footer-chip__dot"></span><span id="fpsDisplay">60</span> FPS</span>
+    </div>
+    <div class="hud-footer__center">
+      <div class="footer-wave">
+        <span class="wave-bar" style="--d:0.0s"></span>
+        <span class="wave-bar" style="--d:0.1s"></span>
+        <span class="wave-bar" style="--d:0.2s"></span>
+        <span class="wave-bar" style="--d:0.3s"></span>
+        <span class="wave-bar" style="--d:0.4s"></span>
+        <span class="wave-bar" style="--d:0.5s"></span>
+        <span class="wave-bar" style="--d:0.6s"></span>
+        <span class="wave-bar" style="--d:0.7s"></span>
+        <span class="wave-bar" style="--d:0.8s"></span>
+        <span class="wave-bar" style="--d:0.9s"></span>
+        <span class="wave-bar" style="--d:1.0s"></span>
+        <span class="wave-bar" style="--d:1.1s"></span>
+        <span class="wave-bar" style="--d:1.2s"></span>
+        <span class="wave-bar" style="--d:1.3s"></span>
+        <span class="wave-bar" style="--d:1.4s"></span>
+      </div>
+      <span class="footer-label">SIGNAL STREAM</span>
+    </div>
+    <div class="hud-footer__right">
+      <span class="footer-chip">PARTICLES: <span id="particleCount">0</span></span>
+      <span class="footer-chip">LAT 28.6139° N — LNG 77.2090° E</span>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
